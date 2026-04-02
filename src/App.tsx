@@ -162,7 +162,7 @@ interface Sticker {
 }
 
 interface RefundRequest {
-  [x: string]: string;
+  [x: string]: string | undefined;
   id: string;
   uid: string;
   meterNumber: string;
@@ -250,6 +250,18 @@ const sendEmailNotification = async (
         รหัสนี้จะหมดอายุใน 10 นาที
         
         ไม่ใช่คุณ? โปรดเพิกเฉยต่อข้อความนี้
+      `,
+      completed: `
+        สวัสดี ${data.fullName}
+        
+        คำขอคืนเงินประกันของคุณได้รับการดำเนินการเสร็จสิ้นแล้ว ✅
+        
+        กรุณาตรวจสอบบัญชีธนาคารของคุณ
+        
+        หากมีข้อสงสัย โปรดติดต่อฝ่ายบัญชี
+        
+        --
+        ระบบขอคืนเงินประกันมิเตอร์ไฟฟ้า
       `
     };
 
@@ -1417,7 +1429,7 @@ const RequestList = ({ requests, isPrivileged }: { requests: RefundRequest[], is
 
       // Send notification to user
       await sendEmailNotification(
-        request.phone,
+        request.phone || '',
         'completed',
         { fullName: request.fullName, signerName }
       );

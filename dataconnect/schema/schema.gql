@@ -1,0 +1,38 @@
+type User @table {
+  username: String!
+  email: String!
+  createdAt: Timestamp!
+  displayName: String
+  role: String
+}
+
+type Project @table {
+  name: String!
+  createdAt: Timestamp!
+  description: String
+}
+
+type TestCase @table {
+  title: String!
+  description: String!
+  expectedResult: String!
+  status: String!
+  createdAt: Timestamp!
+  priority: String
+  project: Project
+  assignee: User
+}
+
+type TestPlan @table {
+  name: String!
+  createdAt: Timestamp!
+  description: String
+  project: Project
+}
+
+type TestPlanTestCase @table(key: ["testPlan", "testCase"]) {
+  position: Int!
+  notes: String
+  testPlan: TestPlan!
+  testCase: TestCase!
+}

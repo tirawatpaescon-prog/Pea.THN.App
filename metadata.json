@@ -1,0 +1,8 @@
+{
+  "name": "เงินประกันทันใจ",
+  "description": "ระบบขอคืนเงินประกันมิเตอร์ไฟฟ้า (ไฟฟ้าชั่วคราว) และตรวจสอบสถานะ",
+  "requestFramePermissions": [
+    "camera",
+    "microphone"
+  ]
+}

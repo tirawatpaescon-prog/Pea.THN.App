@@ -1,0 +1,51 @@
+{
+  "entities": {
+    "User": {
+      "title": "User",
+      "description": "User profile information",
+      "type": "object",
+      "properties": {
+        "uid": { "type": "string", "description": "Unique identifier for the user" },
+        "displayName": { "type": "string", "description": "User's display name" },
+        "email": { "type": "string", "format": "email", "description": "User's email address" },
+        "phoneNumber": { "type": "string", "description": "User's phone number" },
+        "role": { "type": "string", "enum": ["user", "admin"], "description": "User's role" },
+        "createdAt": { "type": "string", "format": "date-time", "description": "Timestamp when the user was created" }
+      },
+      "required": ["uid", "email", "role"]
+    },
+    "RefundRequest": {
+      "title": "RefundRequest",
+      "description": "Electricity meter insurance refund request",
+      "type": "object",
+      "properties": {
+        "requestId": { "type": "string", "description": "Unique identifier for the request" },
+        "uid": { "type": "string", "description": "User ID who made the request" },
+        "meterNumber": { "type": "string", "description": "Electricity meter number" },
+        "accountNumber": { "type": "string", "description": "Electricity account number" },
+        "fullName": { "type": "string", "description": "Full name of the applicant" },
+        "idCardNumber": { "type": "string", "description": "ID card number" },
+        "bankName": { "type": "string", "description": "Bank name for refund" },
+        "bankAccountNumber": { "type": "string", "description": "Bank account number" },
+        "status": { "type": "string", "enum": ["pending", "processing", "approved", "rejected"], "description": "Status of the request" },
+        "idCardImage": { "type": "string", "description": "Base64 encoded image of ID Card" },
+        "electricityBillImage": { "type": "string", "description": "Base64 encoded image of Electricity Bill" },
+        "bankBookImage": { "type": "string", "description": "Base64 encoded image of Bank Book" },
+        "comment": { "type": "string", "description": "Admin comments" },
+        "createdAt": { "type": "string", "format": "date-time", "description": "Timestamp when the request was created" },
+        "updatedAt": { "type": "string", "format": "date-time", "description": "Timestamp when the request was last updated" }
+      },
+      "required": ["uid", "meterNumber", "accountNumber", "fullName", "idCardNumber", "status"]
+    }
+  },
+  "firestore": {
+    "/users/{uid}": {
+      "schema": "User",
+      "description": "User profile collection"
+    },
+    "/refundRequests/{requestId}": {
+      "schema": "RefundRequest",
+      "description": "Collection of refund requests"
+    }
+  }
+}

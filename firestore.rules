@@ -1,0 +1,170 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+
+    // ===============================================================
+    // Assumed Data Model
+    // ===============================================================
+    //
+    // Collection: /users/{uid}
+    // Document ID: {uid} (User ID)
+    // Fields:
+    //   - uid: string (required) - Unique identifier for the user
+    //   - displayName: string (optional) - User's display name
+    //   - email: string (required, email format) - User's email address
+    //   - phoneNumber: string (optional) - User's phone number
+    //   - role: string (required, enum: ['user', 'admin']) - User's role
+    //   - createdAt: string (optional, date-time format) - Timestamp when the user was created
+    //
+    // Collection: /refundRequests/{requestId}
+    // Document ID: {requestId} (Unique ID)
+    // Fields:
+    //   - requestId: string (optional) - Unique identifier for the request
+    //   - uid: string (required) - User ID who made the request
+    //   - meterNumber: string (required) - Electricity meter number
+    //   - accountNumber: string (required) - Electricity account number
+    //   - fullName: string (required) - Full name of the applicant
+    //   - idCardNumber: string (required) - ID card number
+    //   - bankName: string (optional) - Bank name for refund
+    //   - bankAccountNumber: string (optional) - Bank account number
+    //   - status: string (required, enum: ['pending', 'processing', 'approved', 'rejected']) - Status of the request
+    //   - idCardImage: string (optional) - Base64 image of ID Card
+    //   - electricityBillImage: string (optional) - Base64 image of Electricity Bill
+    //   - bankBookImage: string (optional) - Base64 image of Bank Book
+    //   - comment: string (optional) - Admin comments
+    //   - createdAt: string (optional, date-time format) - Timestamp when the request was created
+    //   - updatedAt: string (optional, date-time format) - Timestamp when the request was last updated
+    //
+    // ===============================================================
+
+    // ===============================================================
+    // Helper Functions
+    // ===============================================================
+
+    function isAuthenticated() {
+      return request.auth != null;
+    }
+
+    function isOwner(userId) {
+      return isAuthenticated() && request.auth.uid == userId;
+    }
+
+    function isAdmin() {
+      return isAuthenticated() && request.auth.token.email == "tirawat.p.aescon@gmail.com";
+    }
+
+    function isAccounting() {
+      return isAuthenticated() && request.auth.token.email == "accountant@company.com";
+    }
+
+    function isAdminOrAccounting() {
+      return isAuthenticated() && (request.auth.token.email == "tirawat.p.aescon@gmail.com" || request.auth.token.email == "accountant@company.com");
+    }
+
+    function isValidEmail(email) {
+      return email is string && email.matches("^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\\.[a-zA-Z]{2,}$");
+    }
+
+    function isValidDateString(dateStr) {
+      return dateStr is string && dateStr.matches("^\\d{4}-\\d{2}-\\d{2}T\\d{2}:\\d{2}:\\d{2}.*Z?$");
+    }
+
+    function hasOnlyAllowedFields(fields) {
+      return request.resource.data.keys().hasOnly(fields);
+    }
+
+    function hasRequiredFields(fields) {
+      return request.resource.data.keys().hasAll(fields);
+    }
+
+    // ===============================================================
+    // Domain Validators
+    // ===============================================================
+
+    function isValidUser(data) {
+      return hasOnlyAllowedFields(['uid', 'displayName', 'email', 'phoneNumber', 'role', 'createdAt']) &&
+             hasRequiredFields(['uid', 'email', 'role']) &&
+             data.uid is string &&
+             isValidEmail(data.email) &&
+             data.role in ['user', 'admin'] &&
+             (!('createdAt' in data) || isValidDateString(data.createdAt));
+    }
+
+    function isValidRefundRequest(data) {
+      return hasOnlyAllowedFields(['requestId', 'uid', 'meterNumber', 'accountNumber', 'fullName', 'idCardNumber', 'bankName', 'bankAccountNumber', 'status', 'idCardImage', 'electricityBillImage', 'bankBookImage', 'comment', 'createdAt', 'updatedAt', 'slipImage', 'signerName', 'completedAt']) &&
+             hasRequiredFields(['uid', 'meterNumber', 'accountNumber', 'fullName', 'idCardNumber', 'status']) &&
+             data.uid is string &&
+             data.meterNumber is string && data.meterNumber.size() > 0 && data.meterNumber.size() < 50 &&
+             data.accountNumber is string && data.accountNumber.size() > 0 && data.accountNumber.size() < 50 &&
+             data.fullName is string && data.fullName.size() > 0 && data.fullName.size() < 100 &&
+             data.idCardNumber is string && data.idCardNumber.size() == 13 &&
+             data.status in ['pending', 'processing', 'completed', 'rejected'] &&
+             (!('idCardImage' in data) || (data.idCardImage is string && data.idCardImage.size() < 5242880)) &&
+             (!('electricityBillImage' in data) || (data.electricityBillImage is string && data.electricityBillImage.size() < 5242880)) &&
+             (!('bankBookImage' in data) || (data.bankBookImage is string && data.bankBookImage.size() < 5242880)) &&
+             (!('slipImage' in data) || (data.slipImage is string && data.slipImage.size() < 5242880)) &&
+             (!('createdAt' in data) || isValidDateString(data.createdAt)) &&
+             (!('updatedAt' in data) || isValidDateString(data.updatedAt)) &&
+             (!('completedAt' in data) || isValidDateString(data.completedAt));
+    }
+
+    function isValidMeterRegistration(data) {
+      return hasOnlyAllowedFields(['fullName', 'phone', 'address', 'bankName', 'bankAccountNumber', 'idCardNumber', 'electricityBillImage', 'bankBookImage', 'idCardImage', 'role', 'status', 'createdAt', 'approvedAt', 'approvedBy', 'rejectionReason']) &&
+             hasRequiredFields(['fullName', 'phone', 'address', 'bankName', 'bankAccountNumber', 'idCardNumber', 'electricityBillImage', 'bankBookImage', 'idCardImage', 'status']) &&
+             data.fullName is string && data.fullName.size() > 0 && data.fullName.size() < 100 &&
+             data.phone is string && data.phone.matches("^[0-9]{10}$") &&
+             data.address is string && data.address.size() > 0 && data.address.size() < 200 &&
+             data.bankName is string && data.bankName.size() > 0 && data.bankName.size() < 50 &&
+             data.bankAccountNumber is string && data.bankAccountNumber.matches("^[0-9]{10,15}$") &&
+             data.idCardNumber is string && data.idCardNumber.matches("^[0-9]{13}$") &&
+             data.status in ['pending', 'approved', 'rejected'] &&
+             data.electricityBillImage is string && data.electricityBillImage.size() < 5242880 &&
+             data.bankBookImage is string && data.bankBookImage.size() < 5242880 &&
+             data.idCardImage is string && data.idCardImage.size() < 5242880 &&
+             (!('createdAt' in data) || isValidDateString(data.createdAt)) &&
+             (!('approvedAt' in data) || isValidDateString(data.approvedAt));
+    }
+
+    function isValidAuditLog(data) {
+      return hasOnlyAllowedFields(['id', 'registrationId', 'action', 'performedBy', 'timestamp', 'details', 'ipAddress']) &&
+             hasRequiredFields(['registrationId', 'action', 'performedBy', 'timestamp', 'details']) &&
+             data.registrationId is string &&
+             data.action in ['created', 'approved', 'rejected', 'login_attempt'] &&
+             data.performedBy is string &&
+             isValidDateString(data.timestamp) &&
+             data.details is map;
+    }
+
+    // ===============================================================
+    // Rules
+    // ===============================================================
+
+    match /users/{userId} {
+      allow read: if isOwner(userId) || isAdmin();
+      allow create: if isAuthenticated() && isValidUser(request.resource.data) && (isOwner(userId) && request.resource.data.role == 'user' || isAdmin());
+      allow update: if isAuthenticated() && isValidUser(request.resource.data) && (isOwner(userId) && request.resource.data.role == resource.data.role || isAdmin());
+    }
+
+    match /refundRequests/{requestId} {
+      allow read: if true;
+      allow create: if isAuthenticated() && isValidRefundRequest(request.resource.data) && (request.resource.data.uid == request.auth.uid && request.resource.data.status == 'pending' || isAdmin());
+      allow update: if isAuthenticated() && isValidRefundRequest(request.resource.data) && (
+        (resource.data.uid == request.auth.uid && request.resource.data.uid == resource.data.uid && request.resource.data.status == resource.data.status) || 
+        isAdmin() || isAccounting()
+      );
+      allow delete: if isAdmin() || isAccounting();
+    }
+
+    match /meterUserRegistrations/{registrationId} {
+      https://console.firebase.google.com/v1/r/project/gen-lang-client-0232532439/firestore/indexes?create_composite=Cmlwcm9qZWN0cy9nZW4tbGFuZy1jbGllbnQtMDIzMjUzMjQzOS9kYXRhYmFzZXMvKGRlZmF1bHQpL2luZGV4ZXMvQ29sbGVjdGlvbkdyb3VwSWQ9bWV0ZXJVc2VyUmVnaXN0cmF0aW9ucyxJbmRleElkPW5hbWVkX3F1ZXJ5X21ldGVyVXNlclJlZ2lzdHJhdGlvbnMsUGF0aD1tZXRlclVzZXJSZWdpc3RyYXRpb25zLEZpZWxkUGF0aD1waG9uZSxGaWVsZFBhdGg9aWRDYXJkTnVtYmVyLEZpZWxkUGF0aD1zdGF0dXMsRmllbGRQYXRoPW90cENvZGUsRmllbGRQYXRoPW90cEV4cGlyZSxPcmRlcj1BU0NFTkRJTkcsUGF0aD1tZXRlclVzZXJSZWdpc3RyYXRpb25zLEZpZWxkUGF0aD1waG9uZSxGaWVsZFBhdGg9aWRDYXJkTnVtYmVyLEZpZWxkUGF0aD1zdGF0dXMsRmllbGRQYXRoPW90cENvZGUsRmllbGRQYXRoPW90cEV4cGlyZSxPcmRlcj1BU0NFTkRJTkcsUGF0aD1tZXRlclVzZXJSZWdpc3RyYXRpb25zLEZpZWxkUGF0aD1waG9uZSxGaWVsZFBhdGg9aWRDYXJkTnVtYmVyLEZpZWxkUGF0aD1zdGF0dXMsRmllbGRQYXRoPW90cENvZGUsRmllbGRQYXRoPW90cEV4cGlyZSxPcmRlcj1BU0NFTkRJTkcsUGF0aD1tZXRlclVzZXJSZWdpc3RyYXRpb25zLEZpZWxkUGF0aD1waG9uZSxGaWVsZFBhdGg9aWRDYXJkTnVtYmVyLEZpZWxkUGF0aD1zdGF0dXMsRmllbGRQYXRoPW90cENvZGUsRmllbGRQYXRoPW90cEV4cGlyZSxPcmRlcj1BU0NFTkRJTkcsUGF0aD1tZXRlclVzZXJSZWdpc3RyYXRpb25zLEZpZWxkUGF0aD1waG9uZSxGaWVsZFBhdGg9aWRDYXJkTnVtYmVyLEZpZWxkUGF0aD1zdGF0dXMsRmllbGRQYXRoPW90cENvZGUsRmllbGRQYXRoPW90cEV4cGlyZSxPcmRlcj1BU0NFTkRJTkcsUGF0aD1tZXRlclVzZXJSZWdpc3RyYXRpb25zLEZpZWxkUGF0aD1waG9uZSxGaWVsZFBhdGg9aWRDYXJkTnVtYmVyLEZpZWxkUGF0aD1zdGF0dXMsRmllbGRQYXRoPW90cENvZGUsRmllbGRQYXRoPW90cEV4cGlyZSxPcmRlcj1BU0NFTkRJTkcsUGF0aD1tZXRlclVzZXJSZWdpc3RyYXRpb25zLEZpZWxkUGF0aD1waG9uZSxGaWVsZFBhdGg9aWRDYXJkTnVtYmVyLEZpZWxkUGF0aD1zdGF0dXMsRmllbGRQYXRoPW90cENvZGUsRmllbGRQYXRoPW90cEV4cGlyZSxPcmRlcj1BU0NFTkRJTkcsUGF0aD1tZXRlclVzZXJSZWdpc3RyYXRpb25zLEZpZWxkUGF0aD1waG9uZSxGaWVsZFBhdGg9aWRDYXJkTnVtYmVyLEZpZWxkUGF0aD1zdGF0dXMsRmllbGRQYXRoPW90cENvZGUsRmllbGRQYXRoPW90cEV4cGlyZSxPcmRlcj1BU0NFTkRJTkcsUGF0aD1tZXRlclVzZXJSZWdpc3RyYXRpb25zLEZpZWxkUGF0aD1waG9uZSxGaWVsZFBhdGg9aWRDYXJkTnVtYmVyLEZpZWxkUGF0aD1zdGF0dXMsRmllbGRQYXRoPW90cENvZGUsRmllbGRQYXRoPW90cEV4cGlyZSxPcmRlcj1BU0NFTkRJTkcsUGF0aD1tZXRlclVzZXJSZWdpc3RyYXRpb25zLEZpZWxkUGF0aD1waG9uZSxGaWVsZFBhdGg9aWRDYXJkTnVtYmVyLEZpZWxkUGF0aD1zdGF0dXMsRmllbGRQYXRoPW90cENvZGUsRmllbGRQYXRoPW90cEV4cGlyZSxPcmRlcj1BU0NFTkRJTkcsUGF0aD1tZXRlclVzZXJSZWdpc3RyYXRpb25zLEZpZWxkUGF0aD1waG9uZSxGaWVsZFBhdGg9aWRDYXJkTnVtYmVyLEZpZWxkUGF0aD1zdGF0dXMsRmllbGRQYXRoPW90cENvZGUsRmllbGRQYXRoPW90cEV4cGlyZSxPcmRlcj1BU0NFTkRJTkcsUGF0aD1tZXRlclVzZXJSZWdpc3RyYXRpb25zLEZpZWxkUGF0aD1waG9uZSxGaWVsZFBhdGg9aWRDYXJkTnVtYmVyLEZpZWxkUGF0aD1zdGF0dXMsRmllbGRQYXRoPW90cENvZGUsRmllbGRQYXRoPW90cEV4cGlyZSxPcmRlcj1BU0NFTkRJTkcsUGF0aD1tZXRlclVzZXJSZWdpc3RyYXRpb25zLEZpZWxkUGF0aD1waG9uZSxGaWVsZFBhdGg9aWRDYXJkTnVtYmVyLEZpZWxkUGF0aD1zdGF0dXMsRmllbGRQYXRoPW90cENvZGUsRmllbGRQYXRoPW90cEV4cGlyZSxPcmRlcj1BU0NFTkRJTkcsUGF0aD1tZXRlclVzZXJSZWdpc3RyYXRpb25zLEZpZWxkUGF0aD1waG9uZSxGaWVsZFBhdGg9aWRDYXJkTnVtYmVyLEZpZWxkUGF0aD1zdGF0dXMsRmllbGRQYXRoPW90cENvZGUsRmllbGRQYXRoPW90cEV4cGlyZSxPcmRlcj1BU0NFTkRJTkcsUGF0aD1tZXRlclVzZXJSZWdpc3RyYXRpb25zLEZpZWxkUGF0aD1waG9uZSxGaWVsZFBhdGg9aWRDYXJkTnVtYmVyLEZpZWxkUGF0aD1zdGF0dXMsRmllbGRQYXRoPW90cENvZGUsRmllbGRQYXRoPW90cEV4cGlyZSxPcmRlcj1BU0NFTkRJTkcsUGF0aD1tZXRlclVzZXJSZWdpc3RyYXRpb25zLEZpZWxkUGF0aD1waG9uZSxGaWVsZFBhdGg9aWRDYXJkTnVtYmVyLEZpZWxkUGF0aD1zdGF0dXMsRmllbGRQYXRoPW90cENvZGUsRmllbGRQYXRoPW90cEV4cGlyZSxPcmRlcj1BU0NFTkRJTkcsUGF0aD1tZXRlclVzZXJSZWdpc3RyYXRpb25zLEZpZWxkUGF0aD1waG9uZSxGaWVsZFBhdGg9aWRDYXJkTnVtYmVyLEZpZWxkUGF0aD1zdGF0dXMsRmllbGRQYXRoPW90cENvZGUsRmllbGRQYXRoPW90cEV4cGlyZSxPcmRlcj1BU0NFTkRJTkcsUGF0aD1tZXRlclVzZXJSZWdpc3RyYXRpb25zLEZpZWxkUGF0aD1waG9uZSxGaWVsZFBhdGg9aWRDYXJkTnVtYmVyLEZpZWxkUGF0aD1zdGF0dXMsRmllbGRQYXRoPW90cENvZGUsRmllbGRQYXRoPW90cEV4cGlyZSxPcmRlcj1BU0NFTkRJTkcsUGF0aD1tZXRlclVzZXJSZWdpc3RyYXRpb25zLEZpZWxkUGF0aD1waG9uZSxGaWVsZFBhdGg9aWRDYXJkTnVtYmVyLEZpZWxkUGF0aD1zdGF0dXMsRmllbGRQYXRoPW90cENvZGUsRmllbGRQYXRoPW90cEV4cGlyZSxPcmRlcj1BU0NFTkRJTkcsUGF0aD1tZXRlclVzZXJSZWdpc3RyYXRpb25zLEZpZWxkUGF0aD1waG9uZSxGaWVsZFBhdGg9aWRDYXJkTnVtYmVyLEZpZWxkUGF0aD1zdGF0dXMsRmllbGRQYXRoPW90cENvZGUsRmllbGRQYXRoPW90cEV4cGlyZSxPcmRlcj1BU0NFTkRJTkcsUGF0aD1tZXRlclVzZXJSZWdpc3RyYXRpb25zLEZpZWxkUGF0aD1waG9uZSxGaWVsZFBhdGg9aWRDYXJkTnVtYmVyLEZpZWxkUGF0aD1zdGF0dXMsRmllbGRQYXRoPW90cENvZGUsRmllbGRQYXRoPW90cEV4cGlyZSxPcmRlcj1BU0NFTkRJTkcsUGF0aD1tZXRlclVzZXJSZWdpc3RyYXRpb25zLEZpZWxkUGF0aD1waG9uZSxGaWVsZFBhdGg9aWRDYXJkTnVtYmVyLEZpZWxkUGF0aD1zdGF0dXMsRmllbGRQYXRoPW90cENvZGUsRmllbGRQYXRoPW90cEV4cGlyZSxPcmRlcj1BU0NFTkRJTkcsUGF0aD1tZXRlclVzZXJSZWdpc3RyYXRpb25zLEZpZWxkUGF0aD1waG9uZSxGaWVsZFBhdGg9aWRDYXJkTnVtYmVyLEZpZWxkUGF0aD1zdGF0dXMsRmllbGRQYXRoPW90cENvZGUsRmllbGRQYXRoPW90cEV4cGlyZSxPcmRlcj1BU0NFTkRJTkcsUGF0aD1tZXRlclVzZXJSZWdpc3RyYXRpb25zLEZpZWxkUGF0aD1waG9uZSxGaWVsZFBhdGg9aWRDYXJkTnVtYmVyLEZpZWxkUGF0aD1zdGF0dXMsRmllbGRQYXRoPW90cENvZGUsRmllbGRQYXRoPW90cEV4cGlyZSxPcmRlcj1BU0NFTkRJTkcsUGF0aD1tZXRlclVzZXJSZWdpc3RyYXRpb25zLEZpZWxkUGF0aD1waG9uZSxGaWVsZFBhdGg9aWRDYXJkTnVtYmVyLEZpZWxkUGF0aD1zdGF0dXMsRmllbGRQYXRoPW90cENvZGUsRmllbGRQYXRoPW90cEV4cGlyZSxPcmRlcj1BU0NFTkRJTkcsUGF0aD1tZXRlclVzZXJSZWdpc3RyYXRpb25zLEZpZWxkUGF0aD1waG9uZSxGaWVsZFBhdGg9aWRDYXJkTnVtYmVyLEZpZWxkUGF0aD1zdGF0dXMsRmllbGRQYXRoPW90cENvZGUsRmllbGRQYXRoPW90cEV4cGlyZSxPcmRlcj1BU0NFTkRJTkcsUGF0aD1tZXRlclVzZXJSZWdpc3RyYXRpb25zLEZpZWxkUGF0aD1waG9uZSxGaWVsZFBhdGg9aWRDYXJkTnVtYmVyLEZpZWxkUGF0aD1zdGF0dXMsRmllbGRQYXRoPW90cENvZGUsRmllbGRQYXRoPW90cEV4cGlyZSxPcmRlcj1BU0NFTkRJTkcsUGF0aD1tZXRlclVzZXJSZWdpc3RyYXRpb25zLEZpZWxkUGF0aD1waG9uZSxGaWVsZFBhdGg9aWRDYXJkTnVtYmVyLEZpZWxkUGF0aD1zdGF0dXMsRmllbGRQYXRoPW90cENvZGUsRmllbGRQYXRoPW90cEV4cGlyZSxPcmRlcj1BU0NFTkRJTkcsUGF0aD1tZXRlclVzZXJSZWdpc3RyYXRpb25zLEZpZWxkUGF0aD1waG9uZSxGaWVsZFBhdGg9aWRDYXJkTnVtYmVyLEZpZWxkUGF0aD1zdGF0dXMsRmllbGRQYXRoPW90cENvZGUsRmllbGRQYXRoPW90cEV4cGlyZSxPcmRlcj1BU0NFTkRJTkcsUGF0aD1tZXRlclVzZXJSZWdpc3RyYXRpb25zLEZpZWxkUGF0aD1waG9uZSxGaWVsZFBhdGg9aWRDYXJkTnVtYmVyLEZpZWxkUGF0aD1zdGF0dXMsRmllbGRQYXRoPW90cENvZGUsRmllbGRQYXRoPW90cEV4cGlyZSxPcmRlcj1BU0NFTkRJTkcsUGF0aD1tZXRlclVzZXJSZWdpc3RyYXRpb25zLEZpZWxkUGF0aD1waG9uZSxGaWVsZFBhdGg9aWRDYXJkTnVtYmVyLEZpZWxkUGF0aD1zdGF0dXMsRmllbGRQYXRoPW90cENvZGUsRmllbGRQYXRoPW90cEV4cGlyZSxPcmRlcj1BU0NFTkRJTkcsUGF0aD1tZXRlclVzZXJSZWdpc3RyYXRpb25zLEZpZWxkUGF0aD1waG9uZSxGaWVsZFBhdGg9aWRDYXJkTnVtYmVyLEZpZWxkUGF0aD1zdGF0dXMsRmllbGRQYXRoPW90cENvZGUsRmllbGRQYXRoPW90cEV4cGlyZSxPcmRlcj1BU0NFTkRJTkcsUGF0aD1tZXRlclVzZXJSZWdpc3RyYXRpb25zLEZpZWxkUGF0aD1waG9uZSxGaWVsZFBhdGg9aWRDYXJkTnVtYmVyLEZpZWxkUGF0aD1zdGF0dXMsRmllbGRQYXRoPW90cENvZGUsRmllbGRQYXRoPW90cEV4cGlyZSxPcmRlcj1BU0NFTkRJTkcsUGF0aD1tZXRlclVzZXJSZWdpc3RyYXRpb25zLEZpZWxkUGF0aD1waG9uZSxGaWVsZFBhdGg9aWRDYXJkTnVtYmVyLEZpZWxkUGF0aD1zdGF0dXMsRmllbGRQYXRoPW90cENvZGUsRmllbGRQYXRoPW90cEV4cGlyZSxPcmRlcj1BU0NFTkRJTkcsUGF0aD1tZXRlclVzZXJSZWdpc3RyYXRpb25zLEZpZWxkUGF0aD1waG9uZSxGaWVsZFBhdGg9aWRDYXJkTnVtYmVyLEZpZWxkUGF0aD1zdGF0dXMsRmllbGRQYXRoPW90cENvZGUsRmllbGRQYXRoPW90cEV4cGlyZSxPcmRlcj1BU0NFTkRJTkcsUGF0aD1tZXRlclVzZXJSZWdpc3RyYXRpb25zLEZpZWxkUGF0aD1waG9uZSxGaWVsZFBhdGg9aWRDYXJkTnVtYmVyLEZpZWxkUGF0aD1zdGF0dXMsRmllbGRQYXRoPW90cENvZGUsRmllbGRQYXRoPW90cEV4cGlyZSxPcmRlcj1BU0NFTkRJTkcsUGF0aD1tZXRlclVzZXJSZWdpc3RyYXRpb25zLEZpZWxkUGF0aD1waG9uZSxGaWVsZFBhdGg9aWRDYXJkTnVtYmVyLEZpZWxkUGF0aD1zdGF0dXMsRmllbGRQYXRoPW90cENvZGUsRmllbGRQYXRoPW90cEV4cGlyZSxPcmRlcj1BU0NFTkRJTkcsUGF0aD1tZXRlclVzZXJSZWdpc3RyYXRpb25zLEZpZWxkUGF0aD1waG9uZSxGaWVsZFBhdGg9aWRDYXJkTnVtYmVyLEZpZWxkUGF0aD1zdGF0dXMsRmllbGRQYXRoPW90cENvZGUsRmllbGRQYXRoPW90cEV4cGlyZSxPcmRlcj1BU0NFTkRJTkcsUGF0aD1tZXRlclVzZXJSZWdpc3RyYXRpb25zLEZpZWxkUGF0aD1waG9uZSxGaWVsZFBhdGg9aWRDYXJkTnVtYmVyLEZpZWxkUGF0aD1zdGF0dXMsRmllbGRQYXRoPW90cENvZGUsRmllbGRQYXRoPW90cEV4cGlyZSxPcmRlcj1BU0NFTkRJTkcsUGF0aD1tZXRlclVzZXJSZWdpc3RyYXRpb25zLEZpZWxkUGF0aD1waG9uZSxGaWVsZFBhdGg9aWRDYXJkTnVtYmVyLEZpZWxkUGF0aD1zdGF0dXMsRmllbGRQYXRoPW90cENvZGUsRmllbGRQYXRoPW90cEV4cGlyZSxPcmRlcj1BU0NFTkRJTkcsUGF0aD1tZXRlclVzZXJSZWdpc3RyYXRpb25zLEZpZWxkUGF0aD1waG9uZSxGaWVsZFBhdGg9aWRDYXJkTnVtYmVyLEZpZWxkUGF0aD1zdGF0dXMsRmllbGRQYXRoPW90cENvZGUsRmllbGRQYXRoPW90cEV4cGlyZSxPcmRlcj1BU0NFTkRJTkcsUGF0aD1tZXRlclVzZXJSZWdpc3RyYXRpb25zLEZpZWxkUGF0aD1waG9uZSxGaWVsZFBhdGg9aWRDYXJkTnVtYmVyLE      allow read, write: if true;
+    }
+
+    match /auditLogs/{auditId} {
+      allow read, write: if true;
+    }
+
+    match /{path=**} {
+      allow read, write: if false;
+    }
+  }
+}

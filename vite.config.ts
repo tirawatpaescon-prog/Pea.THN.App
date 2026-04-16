@@ -3,11 +3,11 @@ import react from '@vitejs/plugin-react';
 import path from 'path';
 import { defineConfig } from 'vite';
 
-import { cloudflare } from "@cloudflare/vite-plugin";
+
 
 export default defineConfig({
   base: './', // หรือ "/"
-  plugins: [react(), tailwindcss(), cloudflare()],
+  plugins: [react(), tailwindcss()],
   define: {
     'process.env.GEMINI_API_KEY': JSON.stringify(process.env.GEMINI_API_KEY),
   },

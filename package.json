@@ -3,7 +3,12 @@
   "private": true,
   "type": "module",
   "scripts": {
+<<<<<<< Updated upstream
     "dev": "vite --port=3000 --host=0.0.0.0",
+=======
+    "dev": "tsx server.ts",
+    "dev:vite": "vite --port=3000 --host",
+>>>>>>> Stashed changes
     "build": "vite build",
     "preview": "npm run build && wrangler dev",
     "clean": "rm -rf dist",

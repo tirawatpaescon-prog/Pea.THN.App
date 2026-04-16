@@ -1,0 +1,63 @@
+{
+  "requests": {
+    "title": "ICS Workflow Requests",
+    "type": "object",
+    "properties": {
+      "requestNumber": { "type": "string" },
+      "CA": { "type": "string" },
+      "fullName": { "type": "string" },
+      "address": { "type": "string" },
+      "depositAmount": { "type": "number" },
+      "meterType": { "type": "number" },
+      "officeCode": { "type": "string" },
+      "managementType": { "type": "string" },
+      "lat": { "type": "number" },
+      "lng": { "type": "number" },
+      "status": {
+        "type": "string",
+        "enum": ["Pending", "Installed", "Cancelling", "Removed", "Completed"]
+      },
+      "createdAt": { "type": "string", "format": "date-time" },
+      "updatedAt": { "type": "string", "format": "date-time" },
+      "meterNumber": { "type": "string" },
+      "attachments": { "type": "array", "items": { "type": "string" } }
+    },
+    "required": ["requestNumber", "CA", "fullName", "address", "depositAmount", "meterType", "officeCode", "managementType", "status", "createdAt", "updatedAt"]
+  },
+  "global_data": {
+    "title": "Global ICS Data",
+    "type": "object",
+    "properties": {
+      "requestNumber": { "type": "string" },
+      "CA": { "type": "string" },
+      "fullName": { "type": "string" },
+      "address": { "type": "string" },
+      "depositAmount": { "type": "number" },
+      "meterType": { "type": "number" },
+      "officeCode": { "type": "string" },
+      "managementType": { "type": "string" },
+      "lat": { "type": "number" },
+      "lng": { "type": "number" },
+      "createdAt": { "type": "string", "format": "date-time" },
+      "updatedAt": { "type": "string", "format": "date-time" }
+    },
+    "required": ["requestNumber", "CA", "fullName", "address", "depositAmount", "meterType", "officeCode", "managementType", "createdAt", "updatedAt"]
+  },
+  "meterUserRegistrations": {
+    "title": "Meter User Registrations",
+    "type": "object",
+    "properties": {
+      "fullName": { "type": "string" },
+      "phone": { "type": "string" },
+      "idCardNumber": { "type": "string" },
+      "status": { "type": "string" },
+      "bankName": { "type": "string" },
+      "bankAccountNumber": { "type": "string" },
+      "bankBookImage": { "type": "string" },
+      "idCardImage": { "type": "string" },
+      "createdAt": { "type": "string", "format": "date-time" },
+      "updatedAt": { "type": "string", "format": "date-time" }
+    },
+    "required": ["fullName", "phone", "idCardNumber", "status", "createdAt", "updatedAt"]
+  }
+}
